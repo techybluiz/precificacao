@@ -200,6 +200,11 @@ export default function PricingCalculator() {
     }>
   >([])
 
+  const [discountType, setDiscountType] = useState("none") // "none", "percentage", "fixed"
+  const [discountValue, setDiscountValue] = useState(0)
+  const [finalPrice, setFinalPrice] = useState(0)
+  const [customFinalPrice, setCustomFinalPrice] = useState(false)
+
   const handleAdditionalToggle = (additional: any, checked: boolean) => {
     if (checked) {
       // Add with minimum price as default
@@ -240,14 +245,33 @@ export default function PricingCalculator() {
 
     // Add additionals
     const additionalsTotal = selectedAdditionals.reduce((sum, additional) => sum + additional.price, 0)
-    const totalPrice = basePrice + additionalsTotal
+    let totalPrice = basePrice + additionalsTotal
+
+    if (discountType === "percentage" && discountValue > 0) {
+      totalPrice = totalPrice * (1 - discountValue / 100)
+    } else if (discountType === "fixed" && discountValue > 0) {
+      totalPrice = Math.max(0, totalPrice - discountValue)
+    }
 
     setCalculatedPrice(totalPrice)
+
+    if (!customFinalPrice) {
+      setFinalPrice(totalPrice)
+    }
+  }
+
+  const toggleCustomFinalPrice = (enabled: boolean) => {
+    setCustomFinalPrice(enabled)
+    if (!enabled) {
+      setFinalPrice(calculatedPrice)
+    }
   }
 
   const generateProposal = () => {
+    const priceToUse = customFinalPrice ? finalPrice : calculatedPrice
+
     if (pricingType === "hourly") {
-      if (!estimatedHours || !calculatedPrice || !projectName) return
+      if (!estimatedHours || !priceToUse || !projectName) return
 
       const urgencyMultiplier = urgency === "urgente" ? 1.3 : urgency === "muito-urgente" ? 1.6 : 1
 
@@ -259,7 +283,7 @@ export default function PricingCalculator() {
         serviceDescription: `Desenvolvimento baseado em ${estimatedHours}h de trabalho com ${developerCount} desenvolvedor${developerCount > 1 ? "es" : ""}`,
         complexity: "personalizado",
         urgency,
-        totalPrice: calculatedPrice,
+        totalPrice: priceToUse,
         basePrice: hourlyRate * estimatedHours * developerCount,
         multiplier: 1,
         urgencyMultiplier,
@@ -270,9 +294,13 @@ export default function PricingCalculator() {
         estimatedHours,
         developerCount,
         additionals: selectedAdditionals,
+        discountType,
+        discountValue,
+        originalPrice: calculatedPrice,
+        customFinalPrice,
       })
     } else {
-      if (!selectedService || !complexity || !calculatedPrice || !projectName) return
+      if (!selectedService || !complexity || !priceToUse || !projectName) return
 
       const service = servicePricing[selectedService]
       const complexityMultiplier = service.complexity[complexity]
@@ -286,7 +314,7 @@ export default function PricingCalculator() {
         serviceDescription: service.description,
         complexity,
         urgency,
-        totalPrice: calculatedPrice,
+        totalPrice: priceToUse,
         basePrice: service.basePrice,
         multiplier: complexityMultiplier,
         urgencyMultiplier,
@@ -294,6 +322,10 @@ export default function PricingCalculator() {
         additionalNotes: "",
         pricingType: "fixed",
         additionals: selectedAdditionals,
+        discountType,
+        discountValue,
+        originalPrice: calculatedPrice,
+        customFinalPrice,
       })
     }
     setShowProposalGenerator(true)
@@ -325,6 +357,8 @@ export default function PricingCalculator() {
   }
 
   const additionalsTotal = selectedAdditionals.reduce((sum, additional) => sum + additional.price, 0)
+
+  const displayPrice = customFinalPrice ? finalPrice : calculatedPrice
 
   return (
     <div className="min-h-screen bg-background">
@@ -702,6 +736,74 @@ export default function PricingCalculator() {
                   </CardContent>
                 </Card>
 
+                {calculatedPrice > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="font-heading">Ajustes de Preço</CardTitle>
+                      <CardDescription>Configure descontos ou defina um valor final personalizado</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Tipo de Desconto</Label>
+                          <Select value={discountType} onValueChange={setDiscountType}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Sem desconto</SelectItem>
+                              <SelectItem value="percentage">Desconto em %</SelectItem>
+                              <SelectItem value="fixed">Desconto fixo (R$)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {discountType !== "none" && (
+                          <div className="space-y-2">
+                            <Label>Valor do Desconto {discountType === "percentage" ? "(%)" : "(R$)"}</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={discountType === "percentage" ? "100" : undefined}
+                              value={discountValue}
+                              onChange={(e) => setDiscountValue(Number(e.target.value))}
+                              placeholder={discountType === "percentage" ? "10" : "500"}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2 pt-2">
+                        <Checkbox
+                          id="custom-final-price"
+                          checked={customFinalPrice}
+                          onCheckedChange={toggleCustomFinalPrice}
+                        />
+                        <Label htmlFor="custom-final-price" className="text-sm font-medium">
+                          Definir valor final personalizado
+                        </Label>
+                      </div>
+
+                      {customFinalPrice && (
+                        <div className="space-y-2">
+                          <Label>Valor Final Personalizado (R$)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={finalPrice}
+                            onChange={(e) => setFinalPrice(Number(e.target.value))}
+                            placeholder="Digite o valor final"
+                          />
+                        </div>
+                      )}
+
+                      <Button onClick={calculatePrice} variant="outline" className="w-full bg-transparent">
+                        Recalcular com Ajustes
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Results */}
                 {calculatedPrice > 0 && (
                   <Card className="border-accent/20 bg-accent/5">
@@ -716,7 +818,7 @@ export default function PricingCalculator() {
                         <div className="flex items-center justify-between">
                           <span className="text-lg font-medium">Valor Total Estimado:</span>
                           <span className="text-3xl font-heading font-black text-accent">
-                            R$ {calculatedPrice.toLocaleString("pt-BR")}
+                            R$ {displayPrice.toLocaleString("pt-BR")}
                           </span>
                         </div>
 
@@ -770,21 +872,40 @@ export default function PricingCalculator() {
                                 <span>+{urgency === "urgente" ? "30%" : "60%"}</span>
                               </div>
                             )}
+                            {discountType !== "none" && discountValue > 0 && (
+                              <div className="flex justify-between text-green-600">
+                                <span>
+                                  Desconto {discountType === "percentage" ? `(${discountValue}%)` : "aplicado"}:
+                                </span>
+                                <span>
+                                  -
+                                  {discountType === "percentage"
+                                    ? `R$ ${((calculatedPrice + additionalsTotal) * (discountValue / 100)).toLocaleString("pt-BR")}`
+                                    : `R$ ${discountValue.toLocaleString("pt-BR")}`}
+                                </span>
+                              </div>
+                            )}
+                            {customFinalPrice && (
+                              <div className="flex justify-between text-blue-600 font-medium">
+                                <span>Valor final personalizado:</span>
+                                <span>R$ {finalPrice.toLocaleString("pt-BR")}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         <div className="grid md:grid-cols-3 gap-4 pt-4 border-t">
                           <div className="text-center">
                             <div className="text-sm text-muted-foreground">30% Entrada</div>
-                            <div className="font-semibold">R$ {(calculatedPrice * 0.3).toLocaleString("pt-BR")}</div>
+                            <div className="font-semibold">R$ {(displayPrice * 0.3).toLocaleString("pt-BR")}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-sm text-muted-foreground">40% MVP</div>
-                            <div className="font-semibold">R$ {(calculatedPrice * 0.4).toLocaleString("pt-BR")}</div>
+                            <div className="font-semibold">R$ {(displayPrice * 0.4).toLocaleString("pt-BR")}</div>
                           </div>
                           <div className="text-center">
                             <div className="text-sm text-muted-foreground">30% Final</div>
-                            <div className="font-semibold">R$ {(calculatedPrice * 0.3).toLocaleString("pt-BR")}</div>
+                            <div className="font-semibold">R$ {(displayPrice * 0.3).toLocaleString("pt-BR")}</div>
                           </div>
                         </div>
 

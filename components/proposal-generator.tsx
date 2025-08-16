@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, Send, Eye, DollarSign, Award, Users, Zap, Plus, Trash2 } from "lucide-react"
 import Image from "next/image"
 
@@ -31,6 +32,10 @@ interface ProposalData {
     price: number
     category: string
   }>
+  discountType?: string
+  discountValue?: number
+  originalPrice?: number
+  customFinalPrice?: boolean
 }
 
 interface ProjectScope {
@@ -45,9 +50,18 @@ interface ProposalGeneratorProps {
   onClose: () => void
 }
 
+const mockClients = [
+  { id: "1", name: "João Silva", email: "joao@empresa.com", company: "Empresa ABC" },
+  { id: "2", name: "Maria Santos", email: "maria@startup.com", company: "Startup XYZ" },
+  { id: "3", name: "Pedro Costa", email: "pedro@tech.com", company: "Tech Solutions" },
+  { id: "4", name: "Ana Oliveira", email: "ana@digital.com", company: "Digital Corp" },
+]
+
 export function ProposalGenerator({ proposalData, onClose }: ProposalGeneratorProps) {
   const [clientName, setClientName] = useState("")
   const [clientEmail, setClientEmail] = useState("")
+  const [selectedClientId, setSelectedClientId] = useState("")
+  const [useExistingClient, setUseExistingClient] = useState(false)
   const [timeline, setTimeline] = useState("")
   const [additionalNotes, setAdditionalNotes] = useState("")
   const [showPreview, setShowPreview] = useState(false)
@@ -77,6 +91,24 @@ export function ProposalGenerator({ proposalData, onClose }: ProposalGeneratorPr
   ])
 
   if (!proposalData) return null
+
+  const handleClientSelection = (clientId: string) => {
+    setSelectedClientId(clientId)
+    const client = mockClients.find((c) => c.id === clientId)
+    if (client) {
+      setClientName(client.name)
+      setClientEmail(client.email)
+    }
+  }
+
+  const toggleClientMode = (useExisting: boolean) => {
+    setUseExistingClient(useExisting)
+    if (!useExisting) {
+      setSelectedClientId("")
+      setClientName("")
+      setClientEmail("")
+    }
+  }
 
   const entrancePayment = proposalData.totalPrice * 0.5
   const finalPayment = proposalData.totalPrice * 0.5
@@ -108,42 +140,310 @@ export function ProposalGenerator({ proposalData, onClose }: ProposalGeneratorPr
   }
 
   const downloadProposal = () => {
-    const proposalContent = `
-NUNTECH - PROPOSTA COMERCIAL
+    // Create a new window with the proposal content
+    const printWindow = window.open("", "_blank")
+    if (!printWindow) return
 
-Cliente: ${clientName}
-Email: ${clientEmail}
-Data: ${new Date().toLocaleDateString("pt-BR")}
-Proposta Nº: ${Date.now().toString().slice(-6)}
+    const proposalHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Proposta Comercial - ${clientName}</title>
+          <meta charset="utf-8">
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              line-height: 1.6; 
+              color: #333; 
+              max-width: 800px; 
+              margin: 0 auto; 
+              padding: 20px;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              border-bottom: 2px solid #8b5cf6; 
+              padding-bottom: 20px;
+            }
+            .logo-section {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 20px;
+              margin-bottom: 20px;
+            }
+            .company-info h1 { 
+              color: #1f2937; 
+              margin: 0; 
+              font-size: 2.5em;
+            }
+            .company-info p { 
+              color: #8b5cf6; 
+              margin: 5px 0;
+            }
+            .proposal-title {
+              background: linear-gradient(135deg, #8b5cf6, #1f2937);
+              color: white;
+              padding: 15px;
+              border-radius: 8px;
+              margin: 20px 0;
+            }
+            .section { 
+              margin: 30px 0; 
+            }
+            .section h3 { 
+              color: #1f2937; 
+              border-bottom: 1px solid #e5e7eb; 
+              padding-bottom: 10px;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin: 20px 0;
+            }
+            th, td { 
+              border: 1px solid #e5e7eb; 
+              padding: 12px; 
+              text-align: left;
+            }
+            th { 
+              background-color: #f9fafb; 
+              font-weight: bold;
+            }
+            .total-row { 
+              background-color: #8b5cf6; 
+              color: white; 
+              font-weight: bold;
+            }
+            .payment-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              margin: 20px 0;
+            }
+            .payment-box {
+              border: 2px solid #8b5cf6;
+              padding: 20px;
+              text-align: center;
+              border-radius: 8px;
+            }
+            .conditions {
+              background-color: #f9fafb;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 20px 0;
+            }
+            .about-section {
+              background-color: #f3f4f6;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 20px 0;
+            }
+            .features-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 15px;
+              margin: 15px 0;
+            }
+            .feature-box {
+              background: white;
+              padding: 15px;
+              border-radius: 8px;
+              text-align: center;
+              border: 1px solid #e5e7eb;
+            }
+            @media print {
+              body { margin: 0; padding: 15px; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-section">
+              <div class="company-info">
+                <h1>Nuntech</h1>
+                <p><strong>Soluções em Desenvolvimento</strong></p>
+                <p>Inovação • Qualidade • Resultados</p>
+              </div>
+            </div>
+            <div class="proposal-title">
+              <h2>Proposta Comercial</h2>
+              <p>Proposta Nº ${Date.now().toString().slice(-6)} • ${new Date().toLocaleDateString("pt-BR")}</p>
+            </div>
+          </div>
 
-SOBRE A NUNTECH:
-Somos uma empresa especializada em desenvolvimento de software com foco em soluções inovadoras e eficientes. 
-Nossa equipe possui vasta experiência em tecnologias modernas e metodologias ágeis.
+          <div class="about-section">
+            <h3>Sobre a Nuntech</h3>
+            <div class="features-grid">
+              <div class="feature-box">
+                <h4>Equipe Especializada</h4>
+                <p>Desenvolvedores experientes em tecnologias modernas</p>
+              </div>
+              <div class="feature-box">
+                <h4>Metodologia Ágil</h4>
+                <p>Entregas rápidas e iterativas com qualidade</p>
+              </div>
+              <div class="feature-box">
+                <h4>Cases de Sucesso</h4>
+                <p>Projetos entregues com excelência e no prazo</p>
+              </div>
+            </div>
+            <p>A Nuntech é especializada em desenvolvimento de software personalizado, com foco em soluções inovadoras que geram resultados reais para nossos clientes.</p>
+          </div>
 
-PROJETO: ${proposalData.projectName}
-Serviço: ${proposalData.serviceName}
-Descrição: ${proposalData.serviceDescription}
+          <div class="section">
+            <h3>Dados do Cliente</h3>
+            <p><strong>Nome:</strong> ${clientName}</p>
+            <p><strong>Email:</strong> ${clientEmail}</p>
+            <p><strong>Projeto:</strong> ${proposalData.projectName}</p>
+            <p><strong>Validade:</strong> Válida até ${new Date(Date.now() + Number.parseInt(validityDays) * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR")} (${validityDays} dias)</p>
+          </div>
 
-INVESTIMENTO: R$ ${proposalData.totalPrice.toLocaleString("pt-BR")}
+          <div class="section">
+            <h3>Escopo do Projeto</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Etapa / Serviço</th>
+                  <th>Descrição</th>
+                  <th>Prazo</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${projectScope
+                  .map(
+                    (item) => `
+                  <tr>
+                    <td><strong>${item.stage}</strong></td>
+                    <td>${item.description}</td>
+                    <td>${item.timeline}</td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
 
-CONDIÇÕES:
-- Prazo de entrega: ${deliveryTerms}
-- Forma de pagamento: ${paymentTerms}
-- Validade da proposta: ${validityDays} dias
+          <div class="section">
+            <h3>Investimento</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Quantidade</th>
+                  <th>Valor Unitário</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${projectScope
+                  .map(
+                    (item) => `
+                  <tr>
+                    <td>${item.stage}</td>
+                    <td>1</td>
+                    <td>R$ ${item.price.toLocaleString("pt-BR")}</td>
+                    <td>R$ ${item.price.toLocaleString("pt-BR")}</td>
+                  </tr>
+                `,
+                  )
+                  .join("")}
+                ${
+                  proposalData.additionals && proposalData.additionals.length > 0
+                    ? `
+                  <tr><td colspan="4"><strong>Adicionais</strong></td></tr>
+                  ${proposalData.additionals
+                    .map(
+                      (additional) => `
+                    <tr>
+                      <td>${additional.name}</td>
+                      <td>1</td>
+                      <td>R$ ${additional.price.toLocaleString("pt-BR")}</td>
+                      <td>R$ ${additional.price.toLocaleString("pt-BR")}</td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                `
+                    : ""
+                }
+                ${
+                  proposalData.discountType && proposalData.discountType !== "none" && proposalData.discountValue
+                    ? `
+                  <tr>
+                    <td colspan="3"><strong>Desconto ${proposalData.discountType === "percentage" ? `(${proposalData.discountValue}%)` : "Aplicado"}</strong></td>
+                    <td style="color: green;">-R$ ${
+                      proposalData.discountType === "percentage"
+                        ? ((proposalData.originalPrice || 0) * (proposalData.discountValue / 100)).toLocaleString(
+                            "pt-BR",
+                          )
+                        : proposalData.discountValue.toLocaleString("pt-BR")
+                    }</td>
+                  </tr>
+                `
+                    : ""
+                }
+                <tr class="total-row">
+                  <td colspan="3"><strong>TOTAL FINAL</strong></td>
+                  <td><strong>R$ ${proposalData.totalPrice.toLocaleString("pt-BR")}</strong></td>
+                </tr>
+              </tbody>
+            </table>
 
-Atenciosamente,
-Equipe Nuntech
+            <div class="payment-grid">
+              <div class="payment-box">
+                <h4>50% na Assinatura</h4>
+                <p><strong>R$ ${entrancePayment.toLocaleString("pt-BR")}</strong></p>
+              </div>
+              <div class="payment-box">
+                <h4>50% na Entrega Final</h4>
+                <p><strong>R$ ${finalPayment.toLocaleString("pt-BR")}</strong></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="conditions">
+            <h3>Condições Comerciais</h3>
+            <p><strong>Forma de Pagamento:</strong> ${paymentTerms}</p>
+            <p><strong>Prazo de Entrega:</strong> ${deliveryTerms}</p>
+            <p><strong>Suporte:</strong> 30 dias de suporte técnico gratuito após a entrega</p>
+            <p><strong>Alterações de Escopo:</strong> Tratadas como aditivo contratual</p>
+            <p><strong>Garantia:</strong> 90 dias para correção de bugs</p>
+            <p><strong>Impostos:</strong> Valores não incluem ISS (5%)</p>
+          </div>
+
+          ${
+            additionalNotes
+              ? `
+            <div class="section">
+              <h3>Observações</h3>
+              <p>${additionalNotes.replace(/\n/g, "<br>")}</p>
+            </div>
+          `
+              : ""
+          }
+
+          <div class="section">
+            <p style="text-align: center; color: #8b5cf6; font-weight: bold;">
+              💡 Dúvidas? Entre em contato: contato@nuntech.com | WhatsApp: (11) 99999-9999
+            </p>
+          </div>
+        </body>
+      </html>
     `
 
-    const blob = new Blob([proposalContent], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `Proposta_${clientName.replace(/\s+/g, "_")}_${Date.now()}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    printWindow.document.write(proposalHTML)
+    printWindow.document.close()
+
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 500)
+    }
   }
 
   const sendProposal = () => {
@@ -177,25 +477,69 @@ Equipe Nuntech
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <h3 className="font-heading font-semibold text-lg">Dados do Cliente</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="client-name">Nome do Cliente</Label>
-                  <Input
-                    id="client-name"
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    placeholder="Ex: João Silva"
-                  />
+
+                <div className="flex items-center space-x-4">
+                  <Button
+                    variant={!useExistingClient ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleClientMode(false)}
+                  >
+                    Novo Cliente
+                  </Button>
+                  <Button
+                    variant={useExistingClient ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleClientMode(true)}
+                  >
+                    Cliente Existente
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="client-email">Email do Cliente</Label>
-                  <Input
-                    id="client-email"
-                    type="email"
-                    value={clientEmail}
-                    onChange={(e) => setClientEmail(e.target.value)}
-                    placeholder="joao@empresa.com"
-                  />
-                </div>
+
+                {useExistingClient ? (
+                  <div className="space-y-2">
+                    <Label>Selecionar Cliente</Label>
+                    <Select value={selectedClientId} onValueChange={handleClientSelection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Escolha um cliente cadastrado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mockClients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            <div>
+                              <div className="font-medium">{client.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {client.company} • {client.email}
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="client-name">Nome do Cliente</Label>
+                      <Input
+                        id="client-name"
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        placeholder="Ex: João Silva"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="client-email">Email do Cliente</Label>
+                      <Input
+                        id="client-email"
+                        type="email"
+                        value={clientEmail}
+                        onChange={(e) => setClientEmail(e.target.value)}
+                        placeholder="joao@empresa.com"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="delivery-terms">Prazo de Entrega</Label>
                   <Input
@@ -251,6 +595,33 @@ Equipe Nuntech
                       </Badge>
                     </div>
                     <Separator />
+                    {proposalData.discountType &&
+                      proposalData.discountType !== "none" &&
+                      proposalData.discountValue && (
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Valor original:</span>
+                            <span className="line-through">
+                              R$ {(proposalData.originalPrice || 0).toLocaleString("pt-BR")}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm text-green-600">
+                            <span>Desconto aplicado:</span>
+                            <span>
+                              -
+                              {proposalData.discountType === "percentage"
+                                ? `${proposalData.discountValue}%`
+                                : `R$ ${proposalData.discountValue.toLocaleString("pt-BR")}`}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    {proposalData.customFinalPrice && (
+                      <div className="flex justify-between text-sm text-blue-600">
+                        <span>Valor personalizado:</span>
+                        <span>Aplicado</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-lg font-semibold">
                       <span>Valor Total:</span>
                       <span className="text-accent">R$ {proposalData.totalPrice.toLocaleString("pt-BR")}</span>
@@ -260,6 +631,7 @@ Equipe Nuntech
               </div>
             </div>
 
+            {/* ... existing code for project scope ... */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="font-heading font-semibold text-lg">Escopo do Projeto</h3>
@@ -352,7 +724,7 @@ Equipe Nuntech
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Proposal Preview */}
+            {/* ... existing preview code ... */}
             <div className="bg-card border rounded-lg p-8 space-y-6">
               {/* Header */}
               <div className="text-center space-y-4">
@@ -382,7 +754,7 @@ Equipe Nuntech
 
               <Separator />
 
-              {/* Sobre a Nuntech */}
+              {/* ... existing preview content ... */}
               <div className="bg-muted/30 p-6 rounded-lg">
                 <h3 className="font-heading font-semibold text-lg mb-4 flex items-center gap-2">
                   <Award className="w-5 h-5 text-accent" />
@@ -506,6 +878,27 @@ Equipe Nuntech
                             ))}
                           </>
                         )}
+                        {proposalData.discountType &&
+                          proposalData.discountType !== "none" &&
+                          proposalData.discountValue && (
+                            <tr className="border-b">
+                              <td colSpan={3} className="p-3 font-medium text-green-600">
+                                Desconto{" "}
+                                {proposalData.discountType === "percentage"
+                                  ? `(${proposalData.discountValue}%)`
+                                  : "Aplicado"}
+                              </td>
+                              <td className="p-3 text-right text-green-600">
+                                -R${" "}
+                                {proposalData.discountType === "percentage"
+                                  ? (
+                                      (proposalData.originalPrice || 0) *
+                                      (proposalData.discountValue / 100)
+                                    ).toLocaleString("pt-BR")
+                                  : proposalData.discountValue.toLocaleString("pt-BR")}
+                              </td>
+                            </tr>
+                          )}
                         <tr className="border-b-2 border-primary bg-primary/5">
                           <td colSpan={3} className="p-3 font-bold text-lg">
                             Total Final
